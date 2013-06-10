@@ -14,8 +14,8 @@ Then you can checkout the source using the manifest for this package and generat
 $ mkdir gcc-bionic && cd gcc-bionic
 $ repo init -u git://github.com/xnox/manifest-gcc-arm-linux-androideabi.git
 $ repo sync -j8
-$ repo start master
+$ repo start master --all
 $ ./debian/rules get-orig-source
 $ debuild -S
 
- -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>, Mon, 10 Jun 2013 12:43:05 +0100
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>, Mon, 10 Jun 2013 13:39:48 +0100
