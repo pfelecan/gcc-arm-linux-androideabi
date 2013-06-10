@@ -3,6 +3,7 @@ gcc-arm-linux-androideabi (0.20130610-3) UNRELEASED; urgency=low
   * Remove java dependencies.
   * Use repo tool, to generated tarball.
   * Store previous orig tarball delta against git, in doko-changes.patch.
+  * Enable parallel build of android portion.
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Wed, 05 Jun 2013 11:35:51 +0100
 

@@ -149,7 +149,7 @@ stamps/bionic1: stamps/kernel-headers
 	sed -i -e 's,defined (ANDROID),defined (ANDROID) || defined (__ANDROID__),g' \
 		$(SYSROOT)$(USR)/include/stlport/stl/config/_system.h
 
-	$(MAKE) -C android \
+	$(MAKE) $(NJOBS) -C android \
 		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
 		out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o \
 		out/target/product/pandaboard/obj/lib/libc.so \
@@ -191,12 +191,12 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	touch $@
 
 stamps/bionic2: stamps/gcc-stage2
-	$(MAKE) -C android \
+	$(MAKE) $(NJOBS) -C android \
 		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
 		out/target/product/pandaboard/obj/lib/libstdc++.so
 
 	ONE_SHOT_MAKEFILE=external/stlport/Android.mk \
-	$(MAKE) -C android \
+	$(MAKE) $(NJOBS) -C android \
 		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
 		all_modules
 	cp android/out/target/product/*/obj/lib/*stl* $(SYSROOT)$(USR)/lib/
