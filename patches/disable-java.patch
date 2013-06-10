@@ -1,0 +1,21 @@
+Description: disable java checks
+Author: Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>
+
+--- a/android/build/core/main.mk
++++ b/android/build/core/main.mk
+@@ -122,6 +122,7 @@
+ endif
+ 
+ 
++ifneq (,)
+ # Check for the correct version of java
+ java_version := $(shell java -version 2>&1 | head -n 1 | grep '^java .*[ "]1\.6[\. "$$]')
+ ifneq ($(shell java -version 2>&1 | grep -i openjdk),)
+@@ -163,6 +164,7 @@
+ $(info ************************************************************)
+ $(error stop)
+ endif
++endif
+ 
+ ifeq (darwin,$(HOST_OS))
+ GCC_REALPATH = $(realpath $(shell which gcc))

@@ -11,7 +11,7 @@ NJOBS = -j 12
 d = debian/gcc-arm-linux-androideabi
 DESTDIR = $(CURDIR)/tmp
 
-DEB_BUILD_GNU_TYPE := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+include /usr/share/dpkg/default.mk
 
 TARGET	= arm-linux-androideabi
 TARGET_TOOLS_PATH = $(DESTDIR)/usr
@@ -259,6 +259,7 @@ clean:
 	rm -rf stamps
 	rm -rf binutils gcc kernel sys-root android/out tmp
 	rm -rf android/frameworks/native/opengl/tests
+	ln -sf build/core/root.mk android/Makefile
 	dh_clean 
 
 install: install-indep install-arch
@@ -312,6 +313,10 @@ binary-arch: build-arch install-arch
 	dh_md5sums -s
 	dh_builddeb -s
 
+get-orig-source:
+	fakeroot ./debian/rules clean
+	-quilt pop -a -f
+	tar --exclude-vcs --transform='s,^,$(DEB_SOURCE)-$(DEB_VERSION_UPSTREAM)/,S' -caf ../$(DEB_SOURCE)_$(DEB_VERSION_UPSTREAM).orig.tar.xz android
 
 binary: binary-arch binary-indep
 .PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure
