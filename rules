@@ -258,6 +258,7 @@ clean:
 	dh_testroot
 	rm -rf stamps
 	rm -rf binutils gcc kernel sys-root android/out tmp
+	rm -rf android/frameworks/native/opengl/tests
 	dh_clean 
 
 install: install-indep install-arch
@@ -311,84 +312,6 @@ binary-arch: build-arch install-arch
 	dh_md5sums -s
 	dh_builddeb -s
 
-get-orig-source:
-	if [ -d android ]; then \
-	  rm -rf android.old; \
-	  mv android android.old; \
-	fi
-	mkdir android
-
-	cd android \
-	  && git clone git://android.git.linaro.org/platform/bionic.git \
-	  && cd bionic \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-
-	cd android \
-	  && git clone git://android.git.linaro.org/platform/build.git \
-	  && cd build \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-
-	mkdir -p android/device/linaro
-	cd android/device/linaro \
-	  && git clone git://android.git.linaro.org/device/linaro/common.git \
-	  && cd common \
-	       git checkout -b linaro-ics origin/linaro-ics
-	cd android/device/linaro \
-	  && git clone git://android.git.linaro.org/device/linaro/pandaboard.git \
-	  && cd pandaboard \
-	       && git checkout -b linaro-jb origin/linaro-jb
-
-	mkdir -p android/frameworks
-	cd android/frameworks \
-	  && git clone git://android.git.linaro.org/platform/frameworks/native.git \
-	  && cd native \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-	: # All we need is tablet-dalvik-heap.mk - but opengl/tests/Android.mk's
-	: # presence act ually breaks things
-	rm -rf android/frameworks/native/opengl/tests
-
-	: # FIXME, fatal: Cannot update paths and switch to branch 'linaro_android_4.2.2' at the same time
-	mkdir -p android/hardware/ti
-	-cd android/hardware/ti \
-	  && git clone git://android.git.linaro.org/platform/hardware/ti/omap4xxx \
-	  && cd omap4xxx \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-
-	mkdir -p android/system
-	cd android/system \
-	  && git clone git://android.git.linaro.org/platform/system/core.git \
-	  && cd core \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-
-	mkdir -p android/external
-	cd android/external \
-	  && git clone git://android.git.linaro.org/platform/external/stlport.git \
-	  && cd stlport \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-
-	cd android/external \
-	  && git clone git://android.git.linaro.org/platform/external/llvm.git \
-	  && cd llvm \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-
-	cd android/external \
-	  && git clone git://android.git.linaro.org/platform/external/clang.git \
-	  && cd clang \
-	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
-
-	cd android/external \
-	  && git clone git://android.git.linaro.org/platform/external/compiler-rt.git \
-	  && cd compiler-rt \
-	       && git checkout -b 4.2.2 android-4.2.2_r1
-
-	cd android/external \
-	  && git clone git://android.git.linaro.org/platform/external/safe-iop.git \
-	  && cd safe-iop \
-	       && git checkout -b 4.2.2 android-4.2.2_r1
-
-	ln -sf build/core/root.mk android/Makefile
-
-	find android -name '.git*' | xargs -r rm -rf
 
 binary: binary-arch binary-indep
 .PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure
