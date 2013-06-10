@@ -1,0 +1,5 @@
+gcc-arm-linux-androideabi (0.20130530-2) saucy; urgency=low
+
+  * Initial release.
+
+ -- Matthias Klose <doko@ubuntu.com>  Tue, 28 May 2013 15:00:18 +0200

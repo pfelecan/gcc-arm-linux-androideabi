@@ -1,0 +1,394 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+
+#export DH_VERBOSE=1
+
+# This has to be exported to make some magic below work.
+export DH_OPTIONS
+
+NJOBS = -j 12
+
+d = debian/gcc-arm-linux-androideabi
+DESTDIR = $(CURDIR)/tmp
+
+DEB_BUILD_GNU_TYPE := $(shell dpkg-architecture -qDEB_BUILD_GNU_TYPE)
+
+TARGET	= arm-linux-androideabi
+TARGET_TOOLS_PATH = $(DESTDIR)/usr
+TARGET_TOOLS_PREFIX = $(TARGET_TOOLS_PATH)/bin/$(TARGET)-
+
+SET_PATH = PATH=$(DESTDIR)/usr/bin:$(PATH)
+
+USR = /usr
+USR = /system
+SYSROOT = $(CURDIR)/sys-root
+FINAL_SYSROOT = /usr/lib/$(TARGET)/sys-root
+
+ARCH = arm
+KERNELARCH = $(ARCH)
+GOLD = yes
+ifeq ($(ARCH),aarch64)
+  GOLD =
+  KERNELARCH = arm64
+endif
+
+ifeq ($(GOLD),yes)
+  GOLDFLAGS =--enable-ld --enable-gold=default
+else
+  GOLDFLAGS = --enable-ld=default
+endif
+
+GCCEXTRAARGS += \
+	--with-float=soft \
+	--with-fpu=vfp \
+	--with-arch=armv5te \
+	--enable-target-optspace
+
+stamps/binutils-prepare:
+	@mkdir -p stamps
+	rm -rf binutils
+	mkdir -p binutils
+	tar -C binutils -x -f /usr/src/binutils/binutils-*.tar.*
+	cd binutils && ln -sf binutils-* binutils
+	touch $@
+
+stamps/binutils1: stamps/binutils-prepare
+	mkdir -p binutils/build1
+	cd binutils/build1 && \
+	  ../binutils/configure \
+		--prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_BUILD_GNU_TYPE) \
+		--target=$(TARGET) \
+		--with-sysroot=$(SYSROOT) \
+		$(GOLDFLAGS) \
+		--enable-plugins \
+		--enable-threads \
+		--disable-shared
+
+	$(MAKE) $(NJOBS) -C binutils/build1
+	$(MAKE) -C binutils/build1 install DESTDIR=$(DESTDIR)
+
+ifeq ($(GOLD),yesXXX)
+	rm -rf ld.bfd
+	mkdir ld.bfd
+	ln -s $(USR)/bin/$(TARGET)-ld.bfd ld.bfd/$(TARGET)-ld
+	rm -rf binutils.bfd
+	mkdir binutils.bfd
+	ln -s $(USR)/$(TARGET)/bin/* binutils.bfd
+	ln -sf ld.bfd binutils.bfd/ld
+endif
+
+	touch $@
+
+stamps/gcc-prepare:
+	rm -rf gcc
+	cp -a /usr/src/gcc-4.8 gcc
+	patch -p0 < debian/gcc-android.diff
+	cd gcc && debian/rules patch
+	touch $@
+
+stamps/gcc-stage1: stamps/binutils1 stamps/gcc-prepare
+	rm -rf gcc/stage1
+	mkdir -p gcc/stage1
+	: # We build a C++ compiler because of Bionic's C++ malloc.
+	: # Don't build libstdc++ because it needs libc headers.
+	cd gcc/stage1 && \
+	  $(SET_PATH) ../src/configure \
+		--prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_BUILD_GNU_TYPE) \
+		--target=$(TARGET) \
+		--with-sysroot=$(SYSROOT) \
+		--disable-multilib --disable-__cxa_atexit --disable-libmudflap \
+		--disable-libssp --disable-threads --disable-tls --disable-decimal-float \
+		--disable-libgomp --disable-libquadmath --disable-shared \
+		--disable-libatomic --disable-libsanitizer --disable-libitm \
+		--disable-libstdc__-v3 --disable-sjlj-exceptions \
+		--enable-languages=c,c++ --with-newlib \
+		$(GCCEXTRAARGS)
+	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage1
+	$(SET_PATH) $(MAKE) -C gcc/stage1 install DESTDIR=$(DESTDIR)
+	touch $@
+
+stamps/kernel-headers: stamps/gcc-stage1
+	@mkdir -p stamps
+	mkdir -p kernel
+	tar -C kernel -x -f /usr/src/linux-source-*.tar.*
+	cd kernel && ln -sf linux-source-* linux
+
+	$(SET_PATH) \
+	  $(MAKE) -C kernel/linux ARCH=$(KERNELARCH) CROSS_COMPILE=$(TARGET)- \
+		defconfig
+	$(SET_PATH) \
+	  $(MAKE) -C kernel/linux ARCH=$(KERNELARCH) CROSS_COMPILE=$(TARGET)- \
+		prepare0 prepare1 prepare2 prepare3
+	$(SET_PATH) \
+	  $(MAKE) -C kernel/linux ARCH=$(KERNELARCH) CROSS_COMPILE=$(TARGET)- \
+		INSTALL_HDR_PATH=$(SYSROOT)$(USR) headers_install
+
+	for i in \
+	  libc/include libc/arch-$(ARCH)/include libc/kernel/common \
+	  libc/kernel/arch-$(ARCH) libm/include; \
+	do \
+	  cp -a android/bionic/$$i/* $(SYSROOT)$(USR)/include/; \
+	done
+ifneq ($(USR),/usr)
+	ln -sf $(notdir $(USR)) $(SYSROOT)/usr
+endif
+	touch $@
+
+stamps/bionic1: stamps/kernel-headers
+	mkdir -p $(SYSROOT)$(USR)/include/libstdc++
+	cp -a android/bionic/libstdc++/include $(SYSROOT)$(USR)/include/libstdc++/
+	cp -a android/external/stlport/stlport $(SYSROOT)$(USR)/include/
+	: # Make them match the include directory structure we're building
+	sed -i -e 's,\.\./include/header,../header,g;s,usr/include,system/include,g' \
+		$(SYSROOT)$(USR)/include/stlport/stl/config/_android.h
+	: # And don't insist on -DANDROID when gcc already defines __ANDROID__ for us
+	sed -i -e 's,defined (ANDROID),defined (ANDROID) || defined (__ANDROID__),g' \
+		$(SYSROOT)$(USR)/include/stlport/stl/config/_system.h
+
+	$(MAKE) -C android \
+		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
+		out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o \
+		out/target/product/pandaboard/obj/lib/libc.so \
+		out/target/product/pandaboard/obj/lib/libdl.so \
+		out/target/product/pandaboard/obj/lib/libm.so
+	mkdir -p $(SYSROOT)$(USR)/lib
+	cp android/out/target/product/*/obj/lib/* $(SYSROOT)$(USR)/lib/
+	: # Android's pthread bits are built into bionic libc -- but lots of traditional
+	: # Linux configure scripts and Makefiles just hardcode that there's a -lpthread...
+	: # Let's accomodate them
+	touch dummy.c
+	$(SET_PATH) $(TARGET)-gcc -O2 -o dummy.o -c dummy.c
+	$(SET_PATH) $(TARGET)-ar cru $(SYSROOT)$(USR)/lib/libpthread.a dummy.o
+	rm -f dummy.[co]
+
+	touch $@
+
+stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
+	rm -rf gcc/stage2
+	mkdir -p gcc/stage2
+	cd gcc/stage2 && \
+	  $(SET_PATH) ../src/configure \
+		--prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_BUILD_GNU_TYPE) \
+		--target=$(TARGET) \
+		--with-sysroot=$(SYSROOT) \
+		--disable-multilib \
+		--disable-libmudflap \
+		--disable-libssp \
+		--disable-libgomp --disable-libquadmath \
+		--disable-libatomic --disable-libsanitizer --disable-libitm \
+		--enable-languages=c,c++ \
+		--disable-shared \
+		--disable-libstdc__-v3 \
+		$(GCCEXTRAARGS)
+	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage2
+	$(SET_PATH) $(MAKE) -C gcc/stage2 install DESTDIR=$(DESTDIR)
+	touch $@
+
+stamps/bionic2: stamps/gcc-stage2
+	$(MAKE) -C android \
+		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
+		out/target/product/pandaboard/obj/lib/libstdc++.so
+
+	ONE_SHOT_MAKEFILE=external/stlport/Android.mk \
+	$(MAKE) -C android \
+		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
+		all_modules
+	cp android/out/target/product/*/obj/lib/*stl* $(SYSROOT)$(USR)/lib/
+	cp android/out/target/product/*/obj/lib/*stdc* $(SYSROOT)$(USR)/lib/
+	touch $@
+
+# FIXME: why is this needed at all?
+stamps/gcc-stage3: stamps/binutils1 stamps/bionic2
+	rm -rf gcc/stage3
+	mkdir -p gcc/stage3
+	cd gcc/stage3 && \
+	  $(SET_PATH) ../src/configure \
+		--prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_BUILD_GNU_TYPE) \
+		--target=$(TARGET) \
+		--with-sysroot=$(FINAL_SYSROOT) \
+		--with-build-sysroot=$(SYSROOT) \
+		--disable-multilib \
+		--disable-libmudflap \
+		--disable-libssp \
+		--disable-libgomp --disable-libquadmath \
+		--disable-libatomic --disable-libsanitizer --disable-libitm \
+		--enable-__cxa_atexit \
+		--disable-shared \
+		--enable-languages=c,c++,objc,obj-c++,lto \
+		$(GCCEXTRAARGS)
+	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage3
+	$(SET_PATH) $(MAKE) -C gcc/stage3 install DESTDIR=$(DESTDIR)
+	touch $@
+
+# second build with --enable-shared, and FINAL_SYSROOT
+stamps/binutils2: stamps/binutils-prepare stamps/bionic2
+	mkdir -p binutils/build2
+	cd binutils/build2 && \
+	  ../binutils/configure \
+		--prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_BUILD_GNU_TYPE) \
+		--target=$(TARGET) \
+		--with-sysroot=$(FINAL_SYSROOT) \
+		$(GOLDFLAGS) \
+		--enable-plugins \
+		--enable-threads \
+		--enable-shared
+
+	$(MAKE) $(NJOBS) -C binutils/build2
+	$(MAKE) -C binutils/build2 install DESTDIR=$(DESTDIR)
+
+	touch $@
+
+build: build-arch build-indep
+
+build-arch: stamps/bionic2 stamps/binutils2
+build-indep:
+
+clean: 
+	dh_testdir
+	dh_testroot
+	rm -rf stamps
+	rm -rf binutils gcc kernel sys-root android/out tmp
+	dh_clean 
+
+install: install-indep install-arch
+install-indep:
+
+install-arch:
+	dh_testdir
+	dh_testroot
+	dh_prep -s 
+	dh_installdirs -s
+
+	tar -C $(DESTDIR) -c -f - . | tar -C $(d) -x -f -
+	mkdir -p $(d)/usr/$(TARGET)/include
+	cp -a $(SYSROOT)$(USR)/include/* $(d)/usr/$(TARGET)/include/.
+	mkdir -p $(d)/usr/$(TARGET)/lib
+	cp -a $(SYSROOT)$(USR)/lib/* $(d)/usr/$(TARGET)/lib/.
+
+	rm -rf $(d)/usr/share/locale
+	rm -rf $(d)/usr/share/man/man7
+	rm -rf $(d)/usr/share/info
+
+binary-indep: build-indep install-indep
+	dh_testdir
+	dh_testroot
+ifeq (0,1)
+	dh_installchangelogs -i
+	dh_installdocs -i
+	dh_installexamples -i
+	dh_installman -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+endif
+
+binary-arch: build-arch install-arch
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs -s
+	dh_installdocs -s
+	dh_installexamples -s
+	dh_installman -s
+	dh_strip -s
+	dh_compress -s
+	dh_fixperms -s
+	dh_installdeb -s
+	dh_shlibdeps -s -X.so
+	dh_gencontrol -s
+	dh_md5sums -s
+	dh_builddeb -s
+
+get-orig-source:
+	if [ -d android ]; then \
+	  rm -rf android.old; \
+	  mv android android.old; \
+	fi
+	mkdir android
+
+	cd android \
+	  && git clone git://android.git.linaro.org/platform/bionic.git \
+	  && cd bionic \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+
+	cd android \
+	  && git clone git://android.git.linaro.org/platform/build.git \
+	  && cd build \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+
+	mkdir -p android/device/linaro
+	cd android/device/linaro \
+	  && git clone git://android.git.linaro.org/device/linaro/common.git \
+	  && cd common \
+	       git checkout -b linaro-ics origin/linaro-ics
+	cd android/device/linaro \
+	  && git clone git://android.git.linaro.org/device/linaro/pandaboard.git \
+	  && cd pandaboard \
+	       && git checkout -b linaro-jb origin/linaro-jb
+
+	mkdir -p android/frameworks
+	cd android/frameworks \
+	  && git clone git://android.git.linaro.org/platform/frameworks/native.git \
+	  && cd native \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+	: # All we need is tablet-dalvik-heap.mk - but opengl/tests/Android.mk's
+	: # presence act ually breaks things
+	rm -rf android/frameworks/native/opengl/tests
+
+	: # FIXME, fatal: Cannot update paths and switch to branch 'linaro_android_4.2.2' at the same time
+	mkdir -p android/hardware/ti
+	-cd android/hardware/ti \
+	  && git clone git://android.git.linaro.org/platform/hardware/ti/omap4xxx \
+	  && cd omap4xxx \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+
+	mkdir -p android/system
+	cd android/system \
+	  && git clone git://android.git.linaro.org/platform/system/core.git \
+	  && cd core \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+
+	mkdir -p android/external
+	cd android/external \
+	  && git clone git://android.git.linaro.org/platform/external/stlport.git \
+	  && cd stlport \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+
+	cd android/external \
+	  && git clone git://android.git.linaro.org/platform/external/llvm.git \
+	  && cd llvm \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+
+	cd android/external \
+	  && git clone git://android.git.linaro.org/platform/external/clang.git \
+	  && cd clang \
+	       && git checkout -b linaro_android_4.2.2 origin/linaro_android_4.2.2
+
+	cd android/external \
+	  && git clone git://android.git.linaro.org/platform/external/compiler-rt.git \
+	  && cd compiler-rt \
+	       && git checkout -b 4.2.2 android-4.2.2_r1
+
+	cd android/external \
+	  && git clone git://android.git.linaro.org/platform/external/safe-iop.git \
+	  && cd safe-iop \
+	       && git checkout -b 4.2.2 android-4.2.2_r1
+
+	ln -sf build/core/root.mk android/Makefile
+
+	find android -name '.git*' | xargs -r rm -rf
+
+binary: binary-arch binary-indep
+.PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure
