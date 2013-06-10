@@ -1,9 +1,21 @@
 gcc-arm-linux-androideabi for Debian
 ------------------------------------
 
-<this file describes information about the source package, see Debian policy
-manual section 4.14. You WILL either need to modify or delete this file>
+The source code for this package is managed uring repo tool [1]
 
+[1] http://source.android.com/source/using-repo.html
 
+To correctly fetch the source package, please install repo tool using these instructions [2]
 
+[2] http://source.android.com/source/downloading.html
 
+Then you can checkout the source using the manifest for this package and generate debian source package:
+
+$ mkdir gcc-bionic && cd gcc-bionic
+$ repo init -u git://github.com/xnox/manifest-gcc-arm-linux-androideabi.git
+$ repo sync -j8
+$ repo start master
+$ ./debian/rules get-orig-source
+$ debuild -S
+
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>, Mon, 10 Jun 2013 12:43:05 +0100
