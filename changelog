@@ -1,4 +1,4 @@
-gcc-arm-linux-androideabi (0.20130610-3) UNRELEASED; urgency=low
+gcc-arm-linux-androideabi (0.20130618-3) UNRELEASED; urgency=low
 
   * Remove java dependencies.
   * Use repo tool, to generated tarball.
