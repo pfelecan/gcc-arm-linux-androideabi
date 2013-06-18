@@ -151,10 +151,12 @@ stamps/bionic1: stamps/kernel-headers
 
 	$(MAKE) $(NJOBS) -C android \
 		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
+		BUILD_TINY_ANDROID=true \
 		out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o \
 		out/target/product/pandaboard/obj/lib/libc.so \
 		out/target/product/pandaboard/obj/lib/libdl.so \
-		out/target/product/pandaboard/obj/lib/libm.so
+		out/target/product/pandaboard/obj/lib/libm.so \
+		showcommands
 	mkdir -p $(SYSROOT)$(USR)/lib
 	cp android/out/target/product/*/obj/lib/* $(SYSROOT)$(USR)/lib/
 	: # Android's pthread bits are built into bionic libc -- but lots of traditional
@@ -193,12 +195,15 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 stamps/bionic2: stamps/gcc-stage2
 	$(MAKE) $(NJOBS) -C android \
 		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
-		out/target/product/pandaboard/obj/lib/libstdc++.so
+		BUILD_TINY_ANDROID=true \
+		out/target/product/pandaboard/obj/lib/libstdc++.so \
+		showcommands
 
 	ONE_SHOT_MAKEFILE=external/stlport/Android.mk \
 	$(MAKE) $(NJOBS) -C android \
 		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
-		all_modules
+		BUILD_TINY_ANDROID=true \
+		all_modules showcommands
 	cp android/out/target/product/*/obj/lib/*stl* $(SYSROOT)$(USR)/lib/
 	cp android/out/target/product/*/obj/lib/*stdc* $(SYSROOT)$(USR)/lib/
 	touch $@
