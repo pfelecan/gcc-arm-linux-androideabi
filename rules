@@ -18,6 +18,7 @@ TARGET_TOOLS_PATH = $(DESTDIR)/usr
 TARGET_TOOLS_PREFIX = $(TARGET_TOOLS_PATH)/bin/$(TARGET)-
 
 SET_PATH = PATH=$(DESTDIR)/usr/bin:$(PATH)
+SET_CFLAGS_FOR_TARGET = CFLAGS_FOR_TARGET="-DTARGET_POSIX_IO -fno-short-enums"
 
 USR = /usr
 USR = /system
@@ -82,66 +83,64 @@ endif
 	touch $@
 
 stamps/gcc-prepare:
+	mkdir -p stamps/
 	rm -rf gcc
 	cp -a /usr/src/gcc-4.8 gcc
 	patch -p0 < debian/gcc-android.diff
+	mkdir -p gcc/patches/android
+	mkdir -p gcc/stamps
+	cd gcc && debian/rules series
+	cp gcc-patches/4.8/* gcc/patches/android
+	sed -i 's|gcc/libgcc/|a/src/libgcc/|' gcc/patches/android/*
+	ls gcc-patches/4.8/ | sed 's/^/android\//;s/$$/ -p1/' >> gcc/patches/series
 	cd gcc && debian/rules patch
 	touch $@
 
-stamps/gcc-stage1: stamps/binutils1 stamps/gcc-prepare
+stamps/gcc-stage1: stamps/binutils1 stamps/gcc-prepare stamps/kernel-headers
 	rm -rf gcc/stage1
 	mkdir -p gcc/stage1
 	: # We build a C++ compiler because of Bionic's C++ malloc.
 	: # Don't build libstdc++ because it needs libc headers.
 	cd gcc/stage1 && \
-	  $(SET_PATH) ../src/configure \
+	  $(SET_PATH) $(SET_CFLAGS_FOR_TARGET) ../src/configure \
 		--prefix=/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
 		--with-sysroot=$(SYSROOT) \
 		--disable-multilib --disable-__cxa_atexit --disable-libmudflap \
-		--disable-libssp --disable-threads --disable-tls --disable-decimal-float \
+		--disable-libssp --enable-threads --enable-tls --disable-decimal-float \
 		--disable-libgomp --disable-libquadmath --disable-shared \
 		--disable-libatomic --disable-libsanitizer --disable-libitm \
 		--disable-libstdc__-v3 --disable-sjlj-exceptions \
-		--enable-languages=c,c++ --with-newlib \
+		--enable-languages=c,c++ \
 		$(GCCEXTRAARGS)
-	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage1
-	$(SET_PATH) $(MAKE) -C gcc/stage1 install DESTDIR=$(DESTDIR)
+	$(SET_PATH) $(SET_CFLAGS_FOR_TARGET) $(MAKE) $(NJOBS) -C gcc/stage1
+	$(SET_PATH) $(SET_CFLAGS_FOR_TARGET) $(MAKE) -C gcc/stage1 install DESTDIR=$(DESTDIR)
 	touch $@
 
-stamps/kernel-headers: stamps/gcc-stage1
+stamps/kernel-headers:
 	@mkdir -p stamps
-	mkdir -p kernel
-	tar -C kernel -x -f /usr/src/linux-source-*.tar.*
-	cd kernel && ln -sf linux-source-* linux
-
-	$(SET_PATH) \
-	  $(MAKE) -C kernel/linux ARCH=$(KERNELARCH) CROSS_COMPILE=$(TARGET)- \
-		defconfig
-	$(SET_PATH) \
-	  $(MAKE) -C kernel/linux ARCH=$(KERNELARCH) CROSS_COMPILE=$(TARGET)- \
-		prepare0 prepare1 prepare2 prepare3
-	$(SET_PATH) \
-	  $(MAKE) -C kernel/linux ARCH=$(KERNELARCH) CROSS_COMPILE=$(TARGET)- \
-		INSTALL_HDR_PATH=$(SYSROOT)$(USR) headers_install
-
+	rm -rf $(SYSROOT)
+	mkdir -p $(SYSROOT)$(USR)/include
+	cp -a android/bionic/libm/include/math.h $(SYSROOT)$(USR)/include
+	cp -a android/bionic/libm/include/arm/fenv.h $(SYSROOT)$(USR)/include
 	for i in \
+	  libthread_db/include libstdc++/include \
 	  libc/include libc/arch-$(ARCH)/include libc/kernel/common \
-	  libc/kernel/arch-$(ARCH) libm/include; \
+	  libc/kernel/arch-$(ARCH); \
 	do \
 	  cp -a android/bionic/$$i/* $(SYSROOT)$(USR)/include/; \
 	done
+	mkdir -p $(SYSROOT)$(USR)/include/libstdc++
+	cp -a android/bionic/libstdc++/include $(SYSROOT)$(USR)/include/libstdc++/
+	cp -a android/external/stlport/stlport $(SYSROOT)$(USR)/include/
 ifneq ($(USR),/usr)
 	ln -sf $(notdir $(USR)) $(SYSROOT)/usr
 endif
 	touch $@
 
-stamps/bionic1: stamps/kernel-headers
-	mkdir -p $(SYSROOT)$(USR)/include/libstdc++
-	cp -a android/bionic/libstdc++/include $(SYSROOT)$(USR)/include/libstdc++/
-	cp -a android/external/stlport/stlport $(SYSROOT)$(USR)/include/
+stamps/bionic1: stamps/gcc-stage1 stamps/kernel-headers
 	: # Make them match the include directory structure we're building
 	sed -i -e 's,\.\./include/header,../header,g;s,usr/include,system/include,g' \
 		$(SYSROOT)$(USR)/include/stlport/stl/config/_android.h
@@ -173,20 +172,18 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	rm -rf gcc/stage2
 	mkdir -p gcc/stage2
 	cd gcc/stage2 && \
-	  $(SET_PATH) ../src/configure \
+	  $(SET_PATH) $(SET_CFLAGS_FOR_TARGET) ../src/configure \
 		--prefix=/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
 		--with-sysroot=$(SYSROOT) \
-		--disable-multilib \
-		--disable-libmudflap \
-		--disable-libssp \
-		--disable-libgomp --disable-libquadmath \
+		--disable-multilib --disable-__cxa-atexit --disable-libmudflap \
+		--disable-libssp --enable-threads --enable-tls --disable-decimal-float \
+		--disable-libgomp --disable-libquadmath --disable-shared \
 		--disable-libatomic --disable-libsanitizer --disable-libitm \
+		--disable-libstdc__-v3 --disable-sjlj-exceptions \
 		--enable-languages=c,c++ \
-		--disable-shared \
-		--disable-libstdc__-v3 \
 		$(GCCEXTRAARGS)
 	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage2
 	$(SET_PATH) $(MAKE) -C gcc/stage2 install DESTDIR=$(DESTDIR)
@@ -321,7 +318,7 @@ binary-arch: build-arch install-arch
 get-orig-source:
 	fakeroot ./debian/rules clean
 	-quilt pop -a -f
-	tar --exclude-vcs --transform='s,^,$(DEB_SOURCE)-$(DEB_VERSION_UPSTREAM)/,S' -caf ../$(DEB_SOURCE)_$(DEB_VERSION_UPSTREAM).orig.tar.xz android
+	tar --exclude-vcs --transform='s,^,$(DEB_SOURCE)-$(DEB_VERSION_UPSTREAM)/,S' -caf ../$(DEB_SOURCE)_$(DEB_VERSION_UPSTREAM).orig.tar.xz android gcc-patches
 
 binary: binary-arch binary-indep
 .PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure

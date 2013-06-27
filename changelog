@@ -1,4 +1,4 @@
-gcc-arm-linux-androideabi (0.20130618-3) UNRELEASED; urgency=low
+gcc-arm-linux-androideabi (0.20130627-1) saucy; urgency=low
 
   * Remove java dependencies.
   * Use repo tool, to generated tarball.
@@ -6,6 +6,9 @@ gcc-arm-linux-androideabi (0.20130618-3) UNRELEASED; urgency=low
   * Enable parallel build of android portion.
   * Enable verbose android build.
   * Enable tiny android build to drop clang/llvm/compiler-rt.
+  * Apply linaro patches for symbol visibility.
+  * Enable threads.
+  * Use bionic cleaned kernel headers.
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Wed, 05 Jun 2013 11:35:51 +0100
 
