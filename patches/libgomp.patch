@@ -1,0 +1,10 @@
+--- a/gcc/gcc-current/libgomp/env.c
++++ b/gcc/gcc-current/libgomp/env.c
+@@ -42,6 +42,7 @@
+ #  endif
+ # endif
+ #endif
++#include <sys/mman.h>
+ #include <limits.h>
+ #include <errno.h>
+ 

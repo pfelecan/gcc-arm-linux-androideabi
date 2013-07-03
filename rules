@@ -6,7 +6,7 @@
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
 
-NJOBS = -j 12
+NJOBS = -j -l 12
 
 d = debian/gcc-arm-linux-androideabi
 DESTDIR = $(CURDIR)/tmp
@@ -18,7 +18,20 @@ TARGET_TOOLS_PATH = $(DESTDIR)/usr
 TARGET_TOOLS_PREFIX = $(TARGET_TOOLS_PATH)/bin/$(TARGET)-
 
 SET_PATH = PATH=$(DESTDIR)/usr/bin:$(PATH)
-SET_CFLAGS_FOR_TARGET = CFLAGS_FOR_TARGET="-DTARGET_POSIX_IO -fno-short-enums"
+
+CFLAGS_FOR_TARGET = "-O2 -Os -g -DTARGET_POSIX_IO -fno-short-enums \
+-isystem $(CURDIR)/android/bionic/libc/include \
+-isystem $(CURDIR)/android/bionic/libc/kernel/common \
+-isystem $(CURDIR)/android/bionic/libc/kernel/arch-arm \
+-isystem $(CURDIR)/android/bionic/libc/arch-arm/include \
+-isystem $(CURDIR)/android/bionic/libm/include \
+-isystem $(CURDIR)/android/bionic/libm/include/arm \
+-isystem $(CURDIR)/android/bionic/libm/arm \
+-include $(CURDIR)/android/bionic/libc/include/sys/limits.h"
+CFLAGS="-O2 -m32"
+
+SET_FLAGS_FOR_TARGET = $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
+SET_FLAGS_FOR_TARGET_FINAL = $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -frtti" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
 
 USR = /usr
 USR = /system
@@ -26,144 +39,80 @@ SYSROOT = $(CURDIR)/sys-root
 FINAL_SYSROOT = /usr/lib/$(TARGET)/sys-root
 
 ARCH = arm
-KERNELARCH = $(ARCH)
-GOLD = yes
-ifeq ($(ARCH),aarch64)
-  GOLD =
-  KERNELARCH = arm64
-endif
 
-ifeq ($(GOLD),yes)
-  GOLDFLAGS =--enable-ld --enable-gold=default
-else
-  GOLDFLAGS = --enable-ld=default
-endif
-
-GCCEXTRAARGS += \
-	--with-float=soft \
-	--with-fpu=vfp \
-	--with-arch=armv5te \
-	--enable-target-optspace
-
-stamps/binutils-prepare:
-	@mkdir -p stamps
-	rm -rf binutils
-	mkdir -p binutils
-	tar -C binutils -x -f /usr/src/binutils/binutils-*.tar.*
-	cd binutils && ln -sf binutils-* binutils
-	touch $@
-
-stamps/binutils1: stamps/binutils-prepare
+stamps/binutils1:
 	mkdir -p binutils/build1
 	cd binutils/build1 && \
-	  ../binutils/configure \
+	  ../binutils-current/configure \
 		--prefix=/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
-		--with-sysroot=$(SYSROOT) \
-		$(GOLDFLAGS) \
+		--disable-docs \
+		--disable-nls \
+		--disable-shared \
+		--disable-werror \
+		--disable-ppl-version-check \
+		--enable-gold=default \
+		--disable-cloog-version-check \
+		--enable-cloog-backend=isl \
 		--enable-plugins \
-		--enable-threads \
-		--disable-shared
-
+		--enable-threads
 	$(MAKE) $(NJOBS) -C binutils/build1
 	$(MAKE) -C binutils/build1 install DESTDIR=$(DESTDIR)
+	mkdir -p stamps && touch $@
 
-ifeq ($(GOLD),yesXXX)
-	rm -rf ld.bfd
-	mkdir ld.bfd
-	ln -s $(USR)/bin/$(TARGET)-ld.bfd ld.bfd/$(TARGET)-ld
-	rm -rf binutils.bfd
-	mkdir binutils.bfd
-	ln -s $(USR)/$(TARGET)/bin/* binutils.bfd
-	ln -sf ld.bfd binutils.bfd/ld
-endif
-
-	touch $@
-
-stamps/gcc-prepare:
-	mkdir -p stamps/
-	rm -rf gcc
-	cp -a /usr/src/gcc-4.8 gcc
-	patch -p0 < debian/gcc-android.diff
-	mkdir -p gcc/patches/android
-	mkdir -p gcc/stamps
-	cd gcc && debian/rules series
-	cp gcc-patches/4.8/* gcc/patches/android
-	sed -i 's|gcc/libgcc/|a/src/libgcc/|' gcc/patches/android/*
-	ls gcc-patches/4.8/ | sed 's/^/android\//;s/$$/ -p1/' >> gcc/patches/series
-	cd gcc && debian/rules patch
-	touch $@
-
-stamps/gcc-stage1: stamps/binutils1 stamps/gcc-prepare stamps/kernel-headers
+stamps/gcc-stage1: stamps/binutils1
 	rm -rf gcc/stage1
 	mkdir -p gcc/stage1
 	: # We build a C++ compiler because of Bionic's C++ malloc.
 	: # Don't build libstdc++ because it needs libc headers.
 	cd gcc/stage1 && \
-	  $(SET_PATH) $(SET_CFLAGS_FOR_TARGET) ../src/configure \
+	  $(SET_FLAGS_FOR_TARGET) ../gcc-current/configure \
 		--prefix=/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
-		--with-sysroot=$(SYSROOT) \
-		--disable-multilib --disable-__cxa_atexit --disable-libmudflap \
-		--disable-libssp --enable-threads --enable-tls --disable-decimal-float \
-		--disable-libgomp --disable-libquadmath --disable-shared \
-		--disable-libatomic --disable-libsanitizer --disable-libitm \
-		--disable-libstdc__-v3 --disable-sjlj-exceptions \
+		--with-gnu-as \
+		--with-gnu-ld \
 		--enable-languages=c,c++ \
-		$(GCCEXTRAARGS)
-	$(SET_PATH) $(SET_CFLAGS_FOR_TARGET) $(MAKE) $(NJOBS) -C gcc/stage1
-	$(SET_PATH) $(SET_CFLAGS_FOR_TARGET) $(MAKE) -C gcc/stage1 install DESTDIR=$(DESTDIR)
+		--disable-ppl-version-check \
+		--disable-cloog-version-check \
+		--enable-cloog-backend=isl \
+		--disable-libssp --disable-nls \
+		--disable-libmudflap \
+		--disable-shared \
+		--disable-sjlj-exceptions \
+		--disable-libquadmath \
+		--disable-libitm \
+		--disable-libatomic \
+		--with-float=soft \
+		--with-fpu=vfp \
+		--with-arch=armv5te \
+		--enable-target-optspace \
+		--disable-docs \
+		--disable-nls \
+		--enable-threads \
+		--enable-tls \
+		--disable-libgomp \
+		--disable-libstdc__-v3 \
+		--disable-libitm \
+		--disable-libatomic
+	$(SET_FLAGS_FOR_TARGET) $(MAKE) $(NJOBS) -C gcc/stage1
+	$(SET_FLAGS_FOR_TARGET) $(MAKE) -C gcc/stage1 install DESTDIR=$(DESTDIR)
 	touch $@
 
-stamps/kernel-headers:
-	@mkdir -p stamps
-	rm -rf $(SYSROOT)
-	mkdir -p $(SYSROOT)$(USR)/include
-	cp -a android/bionic/libm/include/math.h $(SYSROOT)$(USR)/include
-	cp -a android/bionic/libm/include/arm/fenv.h $(SYSROOT)$(USR)/include
-	for i in \
-	  libthread_db/include libstdc++/include \
-	  libc/include libc/arch-$(ARCH)/include libc/kernel/common \
-	  libc/kernel/arch-$(ARCH); \
-	do \
-	  cp -a android/bionic/$$i/* $(SYSROOT)$(USR)/include/; \
-	done
-	mkdir -p $(SYSROOT)$(USR)/include/libstdc++
-	cp -a android/bionic/libstdc++/include $(SYSROOT)$(USR)/include/libstdc++/
-	cp -a android/external/stlport/stlport $(SYSROOT)$(USR)/include/
-ifneq ($(USR),/usr)
-	ln -sf $(notdir $(USR)) $(SYSROOT)/usr
-endif
-	touch $@
-
-stamps/bionic1: stamps/gcc-stage1 stamps/kernel-headers
-	: # Make them match the include directory structure we're building
-	sed -i -e 's,\.\./include/header,../header,g;s,usr/include,system/include,g' \
-		$(SYSROOT)$(USR)/include/stlport/stl/config/_android.h
-	: # And don't insist on -DANDROID when gcc already defines __ANDROID__ for us
-	sed -i -e 's,defined (ANDROID),defined (ANDROID) || defined (__ANDROID__),g' \
-		$(SYSROOT)$(USR)/include/stlport/stl/config/_system.h
-
-	$(MAKE) $(NJOBS) -C android \
-		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
-		BUILD_TINY_ANDROID=true \
-		out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o \
-		out/target/product/pandaboard/obj/lib/libc.so \
-		out/target/product/pandaboard/obj/lib/libdl.so \
-		out/target/product/pandaboard/obj/lib/libm.so \
-		showcommands
+stamps/bionic1: stamps/gcc-stage1
+	# BUILD_TINY_ANDROID ?
+	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
+	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
+	ONE_SHOT_MAKEFILE=bionic/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o  TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	mkdir -p $(SYSROOT)$(USR)/lib
 	cp android/out/target/product/*/obj/lib/* $(SYSROOT)$(USR)/lib/
-	: # Android's pthread bits are built into bionic libc -- but lots of traditional
-	: # Linux configure scripts and Makefiles just hardcode that there's a -lpthread...
-	: # Let's accomodate them
 	touch dummy.c
 	$(SET_PATH) $(TARGET)-gcc -O2 -o dummy.o -c dummy.c
-	$(SET_PATH) $(TARGET)-ar cru $(SYSROOT)$(USR)/lib/libpthread.a dummy.o
+	$(SET_PATH) $(TARGET)-ar cru $(DESTDIR)/$(TARGET)/lib/libpthread.a dummy.o
+	$(SET_PATH) $(TARGET)-ranlib $(DESTDIR)/$(TARGET)/lib/libpthread.a
 	rm -f dummy.[co]
 
 	touch $@
@@ -172,96 +121,52 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	rm -rf gcc/stage2
 	mkdir -p gcc/stage2
 	cd gcc/stage2 && \
-	  $(SET_PATH) $(SET_CFLAGS_FOR_TARGET) ../src/configure \
+	  $(SET_FLAGS_FOR_TARGET_FINAL) ../gcc-current/configure \
 		--prefix=/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
-		--with-sysroot=$(SYSROOT) \
-		--disable-multilib --disable-__cxa-atexit --disable-libmudflap \
-		--disable-libssp --enable-threads --enable-tls --disable-decimal-float \
-		--disable-libgomp --disable-libquadmath --disable-shared \
-		--disable-libatomic --disable-libsanitizer --disable-libitm \
-		--disable-libstdc__-v3 --disable-sjlj-exceptions \
+		--with-gnu-as \
+		--with-gnu-ld \
 		--enable-languages=c,c++ \
-		$(GCCEXTRAARGS)
-	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage2
-	$(SET_PATH) $(MAKE) -C gcc/stage2 install DESTDIR=$(DESTDIR)
-	touch $@
-
-stamps/bionic2: stamps/gcc-stage2
-	$(MAKE) $(NJOBS) -C android \
-		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
-		BUILD_TINY_ANDROID=true \
-		out/target/product/pandaboard/obj/lib/libstdc++.so \
-		showcommands
-
-	ONE_SHOT_MAKEFILE=external/stlport/Android.mk \
-	$(MAKE) $(NJOBS) -C android \
-		TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard \
-		BUILD_TINY_ANDROID=true \
-		all_modules showcommands
-	cp android/out/target/product/*/obj/lib/*stl* $(SYSROOT)$(USR)/lib/
-	cp android/out/target/product/*/obj/lib/*stdc* $(SYSROOT)$(USR)/lib/
-	touch $@
-
-# FIXME: why is this needed at all?
-stamps/gcc-stage3: stamps/binutils1 stamps/bionic2
-	rm -rf gcc/stage3
-	mkdir -p gcc/stage3
-	cd gcc/stage3 && \
-	  $(SET_PATH) ../src/configure \
-		--prefix=/usr \
-		--build=$(DEB_BUILD_GNU_TYPE) \
-		--host=$(DEB_BUILD_GNU_TYPE) \
-		--target=$(TARGET) \
-		--with-sysroot=$(FINAL_SYSROOT) \
-		--with-build-sysroot=$(SYSROOT) \
-		--disable-multilib \
-		--disable-libmudflap \
+		--disable-ppl-version-check \
+		--disable-cloog-version-check \
+		--enable-cloog-backend=isl \
 		--disable-libssp \
-		--disable-libgomp --disable-libquadmath \
-		--disable-libatomic --disable-libsanitizer --disable-libitm \
-		--enable-__cxa_atexit \
+		--disable-nls \
+		--disable-libmudflap \
 		--disable-shared \
-		--enable-languages=c,c++,objc,obj-c++,lto \
-		$(GCCEXTRAARGS)
-	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage3
-	$(SET_PATH) $(MAKE) -C gcc/stage3 install DESTDIR=$(DESTDIR)
-	touch $@
-
-# second build with --enable-shared, and FINAL_SYSROOT
-stamps/binutils2: stamps/binutils-prepare stamps/bionic2
-	mkdir -p binutils/build2
-	cd binutils/build2 && \
-	  ../binutils/configure \
-		--prefix=/usr \
-		--build=$(DEB_BUILD_GNU_TYPE) \
-		--host=$(DEB_BUILD_GNU_TYPE) \
-		--target=$(TARGET) \
-		--with-sysroot=$(FINAL_SYSROOT) \
-		$(GOLDFLAGS) \
-		--enable-plugins \
+		--disable-sjlj-exceptions \
+		--disable-libquadmath \
+		--disable-libitm \
+		--disable-libatomic \
+		--with-float=soft \
+		--with-fpu=vfp \
+		--with-arch=armv5te \
+		--enable-target-optspace \
+		--disable-docs \
+		--disable-nls \
 		--enable-threads \
-		--enable-shared
-
-	$(MAKE) $(NJOBS) -C binutils/build2
-	$(MAKE) -C binutils/build2 install DESTDIR=$(DESTDIR)
-
+		--enable-tls \
+		--enable-libgomp \
+		--disable-libitm \
+		--disable-libatomic \
+		--disable-libstdc__-v3
+	$(SET_FLAGS_FOR_TARGET_FINAL) $(MAKE) $(NJOBS) -C gcc/stage2
+	$(SET_FLAGS_FOR_TARGET_FINAL) $(MAKE) -C gcc/stage2 install DESTDIR=$(DESTDIR)
 	touch $@
 
 build: build-arch build-indep
 
-build-arch: stamps/bionic2 stamps/binutils2
+build-arch: stamps/gcc2
 build-indep:
 
 clean: 
 	dh_testdir
 	dh_testroot
 	rm -rf stamps
-	rm -rf binutils gcc kernel sys-root android/out tmp
-	rm -rf android/frameworks/native/opengl/tests
-	ln -sf build/core/root.mk android/Makefile
+	rm -rf binutils/build gcc/stage1 gcc/stage2 android/out tmp
+	#rm -rf android/frameworks/native/opengl/tests
 	dh_clean 
 
 install: install-indep install-arch
@@ -274,10 +179,11 @@ install-arch:
 	dh_installdirs -s
 
 	tar -C $(DESTDIR) -c -f - . | tar -C $(d) -x -f -
-	mkdir -p $(d)/usr/$(TARGET)/include
-	cp -a $(SYSROOT)$(USR)/include/* $(d)/usr/$(TARGET)/include/.
-	mkdir -p $(d)/usr/$(TARGET)/lib
-	cp -a $(SYSROOT)$(USR)/lib/* $(d)/usr/$(TARGET)/lib/.
+
+	# Remove conflicting headers, defined in Android
+	cd $(d)/usr/$(TARGET)/include && rm -rf stdio.h sys stlport
+	# Remove bionic, should be build with android build
+	cd $(d)/usr/$(TARGET)/lib/ && rm -rf libc* libm.so libdl.so crt*.o
 
 	rm -rf $(d)/usr/share/locale
 	rm -rf $(d)/usr/share/man/man7
@@ -286,18 +192,6 @@ install-arch:
 binary-indep: build-indep install-indep
 	dh_testdir
 	dh_testroot
-ifeq (0,1)
-	dh_installchangelogs -i
-	dh_installdocs -i
-	dh_installexamples -i
-	dh_installman -i
-	dh_compress -i
-	dh_fixperms -i
-	dh_installdeb -i
-	dh_gencontrol -i
-	dh_md5sums -i
-	dh_builddeb -i
-endif
 
 binary-arch: build-arch install-arch
 	dh_testdir

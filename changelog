@@ -9,6 +9,7 @@ gcc-arm-linux-androideabi (0.20130627-1) saucy; urgency=low
   * Apply linaro patches for symbol visibility.
   * Enable threads.
   * Use bionic cleaned kernel headers.
+  * Remove bionic and headers after final compiler is built.
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Wed, 05 Jun 2013 11:35:51 +0100
 
