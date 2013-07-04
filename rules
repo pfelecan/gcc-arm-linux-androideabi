@@ -25,8 +25,8 @@ stamps/binutils-prepare:
 	rm -rf binutils
 	mkdir -p binutils
 	tar -C binutils -x -f /usr/src/binutils/binutils-*.tar.*
-	cd binutils && ln -sf binutils-* binutils-current
-	cd binutils/binutils-current && QUILT_PATCHES=$(CURDIR)/debian/patches/binutils quilt --quiltrc - push -a
+	cd binutils && ln -sf binutils-* binutils
+	cd binutils/binutils && QUILT_PATCHES=$(CURDIR)/debian/patches/binutils quilt --quiltrc - push -a
 	mkdir -p stamps && touch $@
 
 stamps/gcc-prepare:
@@ -41,7 +41,7 @@ stamps/gcc-prepare:
 stamps/binutils1: stamps/binutils-prepare
 	mkdir -p binutils/build1
 	cd binutils/build1 && \
-	  ../binutils-current/configure \
+	  ../binutils/configure \
 		--prefix=/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
@@ -64,7 +64,7 @@ stamps/gcc-stage1: stamps/binutils1 stamps/gcc-prepare
 	rm -rf gcc/stage1
 	mkdir -p gcc/stage1
 	cd gcc/stage1 && \
-	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../gcc-current/configure \
+	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../src/configure \
 		--prefix=$(DESTDIR)/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
@@ -118,7 +118,7 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	mkdir -p gcc/stage2
 	# FIXME should use --prefix=/usr & --with-build-sysroot ?
 	cd gcc/stage2 && \
-	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../gcc-current/configure \
+	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../src/configure \
 		--prefix=$(DESTDIR)/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
