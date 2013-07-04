@@ -1,0 +1,6 @@
+# Linaro branch and svn updates
+gcc-linaro.diff -p1
+svn-updates-linaro.diff -p1
+
+# Android specific
+ANDROID-libgomp.diff -p1

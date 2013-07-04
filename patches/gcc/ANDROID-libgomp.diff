@@ -1,5 +1,5 @@
---- a/gcc/gcc-current/libgomp/env.c
-+++ b/gcc/gcc-current/libgomp/env.c
+--- a/src/libgomp/env.c
++++ b/src/libgomp/env.c
 @@ -42,6 +42,7 @@
  #  endif
  # endif

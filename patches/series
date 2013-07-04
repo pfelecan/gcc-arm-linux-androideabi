@@ -1,2 +1,1 @@
-disable-java.patch
-libgomp.patch
+android/disable-java.patch

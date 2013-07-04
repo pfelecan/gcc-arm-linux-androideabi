@@ -1,12 +1,10 @@
 #!/usr/bin/make -f
 # -*- makefile -*-
 
-#export DH_VERBOSE=1
+export DH_VERBOSE=1
 
 # This has to be exported to make some magic below work.
 export DH_OPTIONS
-
-NJOBS = -j -l 12
 
 d = debian/gcc-arm-linux-androideabi
 DESTDIR = $(CURDIR)/tmp
@@ -31,6 +29,15 @@ stamps/binutils-prepare:
 	cd binutils/binutils-current && QUILT_PATCHES=$(CURDIR)/debian/patches/binutils quilt --quiltrc - push -a
 	mkdir -p stamps && touch $@
 
+stamps/gcc-prepare:
+	rm -rf gcc
+	cp -a /usr/src/gcc-4.7 gcc
+	mkdir -p gcc/stamps
+	cd gcc && debian/rules series
+	cp debian/patches/gcc/* gcc/debian/patches/
+	cd gcc && debian/rules patch
+	mkdir -p stamps && touch $@
+
 stamps/binutils1: stamps/binutils-prepare
 	mkdir -p binutils/build1
 	cd binutils/build1 && \
@@ -49,15 +56,13 @@ stamps/binutils1: stamps/binutils-prepare
 		--enable-cloog-backend=isl \
 		--enable-plugins \
 		--enable-threads
-	$(MAKE) $(NJOBS) -C binutils/build1
-	$(MAKE) -C binutils/build1 install DESTDIR=$(DESTDIR)
+	dh_auto_build --parallel -Bbinutils/build1
+	dh_auto_build --parallel -Bbinutils/build1 -- install DESTDIR=$(DESTDIR)
 	mkdir -p stamps && touch $@
 
-stamps/gcc-stage1: stamps/binutils1
+stamps/gcc-stage1: stamps/binutils1 stamps/gcc-prepare
 	rm -rf gcc/stage1
 	mkdir -p gcc/stage1
-	: # We build a C++ compiler because of Bionic's C++ malloc.
-	: # Don't build libstdc++ because it needs libc headers.
 	cd gcc/stage1 && \
 	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../gcc-current/configure \
 		--prefix=$(DESTDIR)/usr \
@@ -90,15 +95,14 @@ stamps/gcc-stage1: stamps/binutils1
 		--disable-libstdc__-v3 \
 		--disable-libitm \
 		--disable-libatomic
-	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage1 CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)"
-	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage1 install
+	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage1 -- CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)"
+	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage1 -- install
 	touch $@
 
 stamps/bionic1: stamps/gcc-stage1
-	# BUILD_TINY_ANDROID ?
-	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
-	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
-	ONE_SHOT_MAKEFILE=bionic/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o  TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
+	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk dh_auto_build --parallel -B$(CURDIR)/android -- all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
+	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk dh_auto_build --parallel -B$(CURDIR)/android -- all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
+	ONE_SHOT_MAKEFILE=bionic/Android.mk dh_auto_build --parallel -B$(CURDIR)/android -- all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o  TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	mkdir -p $(DESTDIR)/usr/$(TARGET)/lib
 	cp android/out/target/product/*/obj/lib/* $(DESTDIR)/usr/$(TARGET)/lib
 	touch dummy.c
@@ -146,8 +150,8 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 		--disable-libitm \
 		--disable-libatomic \
 		--disable-libstdc__-v3
-	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage2 CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti"
-	$(SET_PATH) $(MAKE) -C gcc/stage2 install
+	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage2 -- CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti"
+	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage2 -- install
 	touch $@
 
 build: build-arch build-indep
@@ -159,7 +163,7 @@ clean:
 	dh_testdir
 	dh_testroot
 	rm -rf stamps
-	rm -rf binutils gcc/stage1 gcc/stage2 android/out tmp
+	rm -rf binutils gcc android/out tmp
 	dh_clean 
 
 install: install-indep install-arch
@@ -173,7 +177,6 @@ install-arch:
 
 	tar -C $(DESTDIR) -c -f - . | tar -C $(d) -x -f -
 
-	# FIXME: why bfd.h was not installed?!
 	# Remove conflicting headers, defined in Android
 	-cd $(d)/usr/$(TARGET)/include && rm -rf stdio.h sys stlport
 	# Remove bionic, should be build with android build
@@ -207,7 +210,7 @@ binary-arch: build-arch install-arch
 get-orig-source:
 	fakeroot ./debian/rules clean
 	-quilt pop -a -f
-	tar --exclude-vcs --transform='s,^,$(DEB_SOURCE)-$(DEB_VERSION_UPSTREAM)/,S' -caf ../$(DEB_SOURCE)_$(DEB_VERSION_UPSTREAM).orig.tar.xz android binutils gcc
+	tar --exclude-vcs --transform='s,^,$(DEB_SOURCE)-$(DEB_VERSION_UPSTREAM)/,S' -caf ../$(DEB_SOURCE)_$(DEB_VERSION_UPSTREAM).orig.tar.xz android
 
 binary: binary-arch binary-indep
 .PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure

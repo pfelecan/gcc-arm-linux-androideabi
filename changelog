@@ -1,4 +1,10 @@
-gcc-arm-linux-androideabi (0.20130704.1-1) ; urgency=low
+gcc-arm-linux-androideabi (0.20130704.2-1) UNRELEASED; urgency=low
+
+  * Uss gcc-4.7-source.
+
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Thu, 04 Jul 2013 23:30:05 +0100
+
+gcc-arm-linux-androideabi (0.20130704.1-1) saucy; urgency=low
 
   * Use binutils-source package.
 

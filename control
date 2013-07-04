@@ -2,9 +2,9 @@ Source: gcc-arm-linux-androideabi
 Section: devel
 Priority: extra
 Maintainer: Dmitrijs Ledkovs <xnox@ubuntu.com>
-Build-Depends: debhelper (>= 8.0.0),
+Build-Depends: debhelper (>= 9),
   g++-multilib, binutils-multiarch,
-  binutils-source,
+  binutils-source, gcc-4.7-source,
   libppl0.12-dev,
   bison, flex, python,
   zlib1g-dev, libcloog-isl-dev, libgmp-dev, libmpfr-dev, libmpc-dev,
@@ -14,5 +14,11 @@ Standards-Version: 3.9.4
 Package: gcc-arm-linux-androideabi
 Architecture: amd64 i386
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: cross toolchain for android
- cross toolchain for android
+Description: cross toolchain and binutils for Android/Bionic on ARM
+ Cross toolchain targetting Android/Bionic on ARM such as Android,
+ ClockWorkMod, Ubuntu Touch recovery image, Ubuntu Tounch android
+ containers.
+ .
+ This package include gcc toolchain for C/C++ languages and binutils.
+ .
+ Libionic is not included in this package.
