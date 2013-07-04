@@ -4,6 +4,7 @@ Priority: extra
 Maintainer: Dmitrijs Ledkovs <xnox@ubuntu.com>
 Build-Depends: debhelper (>= 8.0.0),
   g++-multilib, binutils-multiarch,
+  binutils-source,
   libppl0.12-dev,
   bison, flex, python,
   zlib1g-dev, libcloog-isl-dev, libgmp-dev, libmpfr-dev, libmpc-dev,

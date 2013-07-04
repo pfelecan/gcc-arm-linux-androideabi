@@ -23,7 +23,15 @@ CFLAGS_FOR_TARGET = -O2 -Os -g -DTARGET_POSIX_IO -fno-short-enums -isystem $(CUR
 
 CFLAGS=-O2
 
-stamps/binutils1:
+stamps/binutils-prepare:
+	rm -rf binutils
+	mkdir -p binutils
+	tar -C binutils -x -f /usr/src/binutils/binutils-*.tar.*
+	cd binutils && ln -sf binutils-* binutils-current
+	cd binutils/binutils-current && QUILT_PATCHES=$(CURDIR)/debian/patches/binutils quilt --quiltrc - push -a
+	mkdir -p stamps && touch $@
+
+stamps/binutils1: stamps/binutils-prepare
 	mkdir -p binutils/build1
 	cd binutils/build1 && \
 	  ../binutils-current/configure \
@@ -91,6 +99,7 @@ stamps/bionic1: stamps/gcc-stage1
 	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	ONE_SHOT_MAKEFILE=bionic/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o  TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
+	mkdir -p $(DESTDIR)/usr/$(TARGET)/lib
 	cp android/out/target/product/*/obj/lib/* $(DESTDIR)/usr/$(TARGET)/lib
 	touch dummy.c
 	$(SET_PATH) $(TARGET)-gcc -O2 -o dummy.o -c dummy.c
@@ -150,7 +159,7 @@ clean:
 	dh_testdir
 	dh_testroot
 	rm -rf stamps
-	rm -rf binutils/build1 gcc/stage1 gcc/stage2 android/out tmp
+	rm -rf binutils gcc/stage1 gcc/stage2 android/out tmp
 	dh_clean 
 
 install: install-indep install-arch

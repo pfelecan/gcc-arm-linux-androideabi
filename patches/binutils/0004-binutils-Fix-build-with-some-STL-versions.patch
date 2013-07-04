@@ -1,0 +1,35 @@
+From 100723d4d1f9f786edc95726c85659c228dbfddd Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bernhard=20Rosenkr=C3=A4nzer?=
+ <Bernhard.Rosenkranzer@linaro.org>
+Date: Mon, 7 Jan 2013 19:39:08 +0100
+Subject: [PATCH 4/6] binutils: Fix build with some STL versions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Some STL versions, including Android's STLport, seem to prefer the
+non-const_reverse_iterator version of rend() over the
+const_reverse_iterator version, and not provide implicit casts to
+const_reverse_iterator, causing the build to fail.
+
+Signed-off-by: Bernhard Rosenkränzer <Bernhard.Rosenkranzer@linaro.org>
+---
+ gold/powerpc.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gold/powerpc.cc b/gold/powerpc.cc
+index fdb68a1..1fd51cf 100644
+--- a/gold/powerpc.cc
++++ b/gold/powerpc.cc
+@@ -2312,7 +2312,7 @@ Target_powerpc<size, big_endian>::group_sections(Layout* layout,
+       typedef Output_section::Input_section_list Input_section_list;
+       for (Input_section_list::const_reverse_iterator i
+ 	     = (*o)->input_sections().rbegin();
+-	   i != (*o)->input_sections().rend();
++	   i != (Input_section_list::const_reverse_iterator)(*o)->input_sections().rend();
+ 	   ++i)
+ 	{
+ 	  if (i->is_input_section())
+-- 
+1.8.3.2
+

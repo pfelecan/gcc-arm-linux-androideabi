@@ -1,0 +1,6 @@
+0001-binutils-Fix-format-string-error-with-enable-targets.patch
+0002-binutils-Fix-possible-use-of-uninitialized-variable.patch
+0003-binutils-Port-to-Android.patch
+0004-binutils-Fix-build-with-some-STL-versions.patch
+0005-gold-Add-workaround-for-some-compiler-versions.patch
+0006-Build-mkstemps.c-unconditionally.patch

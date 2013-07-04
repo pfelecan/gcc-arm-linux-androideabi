@@ -1,0 +1,32 @@
+From a894b8ee163afc824a6522511f8f9e329f8497cc Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bernhard=20Rosenkr=C3=A4nzer?=
+ <Bernhard.Rosenkranzer@linaro.org>
+Date: Mon, 20 May 2013 21:09:05 +0200
+Subject: [PATCH 6/6] Build mkstemps.c unconditionally
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Build mkstemps.c unconditionally - while glibc has it, it still leads
+to linkage problems w/ opannotate
+
+Signed-off-by: Bernhard Rosenkränzer <Bernhard.Rosenkranzer@linaro.org>
+---
+ libiberty/Makefile.in | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libiberty/Makefile.in b/libiberty/Makefile.in
+index f6a3ebd..b9a3cd4 100644
+--- a/libiberty/Makefile.in
++++ b/libiberty/Makefile.in
+@@ -175,6 +175,7 @@ REQUIRED_OFILES =							\
+ 	./getruntime.$(objext) ./hashtab.$(objext) ./hex.$(objext)	\
+ 	./lbasename.$(objext) ./lrealpath.$(objext)			\
+ 	./make-relative-prefix.$(objext) ./make-temp-file.$(objext)	\
++	./mkstemps.$(objext)						\
+ 	./objalloc.$(objext)						\
+ 	./obstack.$(objext)						\
+ 	./partition.$(objext) ./pexecute.$(objext) ./physmem.$(objext)	\
+-- 
+1.8.3.2
+

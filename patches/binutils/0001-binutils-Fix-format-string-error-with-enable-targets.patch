@@ -1,0 +1,28 @@
+From f9f2230a46543f7811679b2237ae03d3d6dd3a45 Mon Sep 17 00:00:00 2001
+From: Bernhard Rosenkraenzer <Bernhard.Rosenkranzer@linaro.org>
+Date: Thu, 15 Nov 2012 19:20:00 +0100
+Subject: [PATCH 1/6] binutils: Fix format string error with
+ --enable-targets=all
+
+Change-Id: Ic2abcfac5072650a8157ac5f7bd538d82ec6ce02
+Signed-off-by: Bernhard Rosenkraenzer <Bernhard.Rosenkranzer@linaro.org>
+---
+ opcodes/s390-mkopc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/opcodes/s390-mkopc.c b/opcodes/s390-mkopc.c
+index 6aed72b..654c01c 100644
+--- a/opcodes/s390-mkopc.c
++++ b/opcodes/s390-mkopc.c
+@@ -298,7 +298,7 @@ dumpTable (void)
+   int  ix;
+ 
+   /*  Write hash table entries (slots).  */
+-  printf (file_header);
++  printf ("%s", file_header);
+ 
+   for (ix = 0; ix < no_ops; ix++)
+     {
+-- 
+1.8.3.2
+
