@@ -19,26 +19,9 @@ TARGET_TOOLS_PREFIX = $(TARGET_TOOLS_PATH)/bin/$(TARGET)-
 
 SET_PATH = PATH=$(DESTDIR)/usr/bin:$(PATH)
 
-CFLAGS_FOR_TARGET = "-O2 -Os -g -DTARGET_POSIX_IO -fno-short-enums \
--isystem $(CURDIR)/android/bionic/libc/include \
--isystem $(CURDIR)/android/bionic/libc/kernel/common \
--isystem $(CURDIR)/android/bionic/libc/kernel/arch-arm \
--isystem $(CURDIR)/android/bionic/libc/arch-arm/include \
--isystem $(CURDIR)/android/bionic/libm/include \
--isystem $(CURDIR)/android/bionic/libm/include/arm \
--isystem $(CURDIR)/android/bionic/libm/arm \
--include $(CURDIR)/android/bionic/libc/include/sys/limits.h"
-CFLAGS="-O2 -m32"
+CFLAGS_FOR_TARGET = -O2 -Os -g -DTARGET_POSIX_IO -fno-short-enums -isystem $(CURDIR)/android/bionic/libc/include -isystem $(CURDIR)/android/bionic/libc/kernel/common -isystem $(CURDIR)/android/bionic/libc/kernel/arch-arm -isystem $(CURDIR)/android/bionic/libc/arch-arm/include -isystem $(CURDIR)/android/bionic/libm/include -isystem $(CURDIR)/android/bionic/libm/include/arm -isystem $(CURDIR)/android/bionic/libm/arm -include $(CURDIR)/android/bionic/libc/include/sys/limits.h
 
-SET_FLAGS_FOR_TARGET = $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
-SET_FLAGS_FOR_TARGET_FINAL = $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -frtti" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)"
-
-USR = /usr
-USR = /system
-SYSROOT = $(CURDIR)/sys-root
-FINAL_SYSROOT = /usr/lib/$(TARGET)/sys-root
-
-ARCH = arm
+CFLAGS=-O2
 
 stamps/binutils1:
 	mkdir -p binutils/build1
@@ -68,11 +51,12 @@ stamps/gcc-stage1: stamps/binutils1
 	: # We build a C++ compiler because of Bionic's C++ malloc.
 	: # Don't build libstdc++ because it needs libc headers.
 	cd gcc/stage1 && \
-	  $(SET_FLAGS_FOR_TARGET) ../gcc-current/configure \
-		--prefix=/usr \
+	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../gcc-current/configure \
+		--prefix=$(DESTDIR)/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
+		--disable-multilib \
 		--with-gnu-as \
 		--with-gnu-ld \
 		--enable-languages=c,c++ \
@@ -98,8 +82,8 @@ stamps/gcc-stage1: stamps/binutils1
 		--disable-libstdc__-v3 \
 		--disable-libitm \
 		--disable-libatomic
-	$(SET_FLAGS_FOR_TARGET) $(MAKE) $(NJOBS) -C gcc/stage1
-	$(SET_FLAGS_FOR_TARGET) $(MAKE) -C gcc/stage1 install DESTDIR=$(DESTDIR)
+	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage1 CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)"
+	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage1 install
 	touch $@
 
 stamps/bionic1: stamps/gcc-stage1
@@ -107,12 +91,11 @@ stamps/bionic1: stamps/gcc-stage1
 	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	ONE_SHOT_MAKEFILE=bionic/Android.mk $(MAKE) $(NJOBS) -C $(CURDIR)/android all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o  TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
-	mkdir -p $(SYSROOT)$(USR)/lib
-	cp android/out/target/product/*/obj/lib/* $(SYSROOT)$(USR)/lib/
+	cp android/out/target/product/*/obj/lib/* $(DESTDIR)/usr/$(TARGET)/lib
 	touch dummy.c
 	$(SET_PATH) $(TARGET)-gcc -O2 -o dummy.o -c dummy.c
-	$(SET_PATH) $(TARGET)-ar cru $(DESTDIR)/$(TARGET)/lib/libpthread.a dummy.o
-	$(SET_PATH) $(TARGET)-ranlib $(DESTDIR)/$(TARGET)/lib/libpthread.a
+	$(SET_PATH) $(TARGET)-ar cru $(DESTDIR)/usr/$(TARGET)/lib/libpthread.a dummy.o
+	$(SET_PATH) $(TARGET)-ranlib $(DESTDIR)/usr/$(TARGET)/lib/libpthread.a
 	rm -f dummy.[co]
 
 	touch $@
@@ -120,12 +103,14 @@ stamps/bionic1: stamps/gcc-stage1
 stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	rm -rf gcc/stage2
 	mkdir -p gcc/stage2
+	# FIXME should use --prefix=/usr & --with-build-sysroot ?
 	cd gcc/stage2 && \
-	  $(SET_FLAGS_FOR_TARGET_FINAL) ../gcc-current/configure \
-		--prefix=/usr \
+	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../gcc-current/configure \
+		--prefix=$(DESTDIR)/usr \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
+		--disable-multilib \
 		--with-gnu-as \
 		--with-gnu-ld \
 		--enable-languages=c,c++ \
@@ -152,21 +137,20 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 		--disable-libitm \
 		--disable-libatomic \
 		--disable-libstdc__-v3
-	$(SET_FLAGS_FOR_TARGET_FINAL) $(MAKE) $(NJOBS) -C gcc/stage2
-	$(SET_FLAGS_FOR_TARGET_FINAL) $(MAKE) -C gcc/stage2 install DESTDIR=$(DESTDIR)
+	$(SET_PATH) $(MAKE) $(NJOBS) -C gcc/stage2 CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti"
+	$(SET_PATH) $(MAKE) -C gcc/stage2 install
 	touch $@
 
 build: build-arch build-indep
 
-build-arch: stamps/gcc2
+build-arch: stamps/gcc-stage2
 build-indep:
 
 clean: 
 	dh_testdir
 	dh_testroot
 	rm -rf stamps
-	rm -rf binutils/build gcc/stage1 gcc/stage2 android/out tmp
-	#rm -rf android/frameworks/native/opengl/tests
+	rm -rf binutils/build1 gcc/stage1 gcc/stage2 android/out tmp
 	dh_clean 
 
 install: install-indep install-arch
@@ -180,11 +164,13 @@ install-arch:
 
 	tar -C $(DESTDIR) -c -f - . | tar -C $(d) -x -f -
 
+	# FIXME: why bfd.h was not installed?!
 	# Remove conflicting headers, defined in Android
-	cd $(d)/usr/$(TARGET)/include && rm -rf stdio.h sys stlport
+	-cd $(d)/usr/$(TARGET)/include && rm -rf stdio.h sys stlport
 	# Remove bionic, should be build with android build
 	cd $(d)/usr/$(TARGET)/lib/ && rm -rf libc* libm.so libdl.so crt*.o
 
+	rm -rf $(d)/usr/lib/libiberty.a
 	rm -rf $(d)/usr/share/locale
 	rm -rf $(d)/usr/share/man/man7
 	rm -rf $(d)/usr/share/info
