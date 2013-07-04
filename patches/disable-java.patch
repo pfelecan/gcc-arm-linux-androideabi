@@ -17,20 +17,20 @@ Author: Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>
  endif
 +endif
  
- ifeq (darwin,$(HOST_OS))
- GCC_REALPATH = $(realpath $(shell which gcc))
+ $(shell echo 'VERSIONS_CHECKED := $(VERSION_CHECK_SEQUENCE_NUMBER)' \
+         > $(OUT_DIR)/versions_checked.mk)
 --- a/android/build/core/config.mk
 +++ b/android/build/core/config.mk
-@@ -340,6 +340,8 @@
- 
- OLD_FLEX := prebuilts/misc/$(HOST_PREBUILT_TAG)/flex/flex-2.5.4a$(HOST_EXECUTABLE_SUFFIX)
+@@ -331,6 +331,8 @@
+ endif
+ OLD_FLEX := prebuilt/$(HOST_PREBUILT_TAG)/flex/flex-2.5.4a$(HOST_EXECUTABLE_SUFFIX)
  
 +HOST_JDK_TOOLS_JAR :=
 +ifneq (,)
  ifeq ($(HOST_OS),darwin)
  # Mac OS' screwy version of java uses a non-standard directory layout
  # and doesn't even seem to have tools.jar.  On the other hand, javac seems
-@@ -359,6 +361,7 @@
+@@ -350,6 +352,7 @@
  ifneq ($(filter 64-Bit, $(shell java -version 2>&1)),)
  HOST_JDK_IS_64BIT_VERSION := true
  endif
