@@ -1,40 +1,5 @@
-gcc-arm-linux-androideabi (0.20130705-1) saucy; urgency=low
+gcc-arm-linux-androideabi (0.20130705.1-0ubuntu1) saucy; urgency=low
 
-  * Trim android build.
+  * Initial release, android cross-toolchain.
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Fri, 05 Jul 2013 10:12:24 +0100
-
-gcc-arm-linux-androideabi (0.20130704.2-1) saucy; urgency=low
-
-  * Uss gcc-4.7-source.
-
- -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Thu, 04 Jul 2013 23:30:05 +0100
-
-gcc-arm-linux-androideabi (0.20130704.1-1) saucy; urgency=low
-
-  * Use binutils-source package.
-
- -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Thu, 04 Jul 2013 17:31:11 +0100
-
-gcc-arm-linux-androideabi (0.20130704-1) saucy; urgency=low
-
-  * Independence day release!
-  * Remove java dependencies.
-  * Use repo tool, to generated tarball.
-  * Store previous orig tarball delta against git, in doko-changes.patch.
-  * Enable parallel build of android portion.
-  * Enable verbose android build.
-  * Enable tiny android build to drop clang/llvm/compiler-rt.
-  * Apply linaro patches for symbol visibility.
-  * Enable threads.
-  * Use bionic cleaned kernel headers.
-  * Remove bionic and headers after final compiler is built.
-  * Use linaro's sources & gcc-4.7
-
- -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Wed, 05 Jun 2013 11:35:51 +0100
-
-gcc-arm-linux-androideabi (0.20130530-2) saucy; urgency=low
-
-  * Initial release.
-
- -- Matthias Klose <doko@ubuntu.com>  Tue, 28 May 2013 15:00:18 +0200

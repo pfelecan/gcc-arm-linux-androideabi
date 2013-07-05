@@ -194,9 +194,10 @@ binary-indep: build-indep install-indep
 binary-arch: build-arch install-arch
 	dh_testdir
 	dh_testroot
-	install -D 644 android/bionic/libm/NOTICE debian/$(DEB_SOURCE)/usr/share/doc/$(DEB_SOURCE)/copyright.libm
-	install -d 644 android/bionic/libc/NOTICE debian/$(DEB_SOURCE)/usr/share/doc/$(DEB_SOURCE)/copyright.libc
-	install -d 644 android/frameworks/native/NOTICE debian/$(DEB_SOURCE)/usr/share/doc/$(DEB_SOURCE)/copyright.frameworks.native	
+	mkdir -p debian/$(DEB_SOURCE)/usr/share/doc/$(DEB_SOURCE)
+	cp android/bionic/libm/NOTICE debian/$(DEB_SOURCE)/usr/share/doc/$(DEB_SOURCE)/copyright.libm
+	cp android/bionic/libc/NOTICE debian/$(DEB_SOURCE)/usr/share/doc/$(DEB_SOURCE)/copyright.libc
+	cp android/frameworks/native/NOTICE debian/$(DEB_SOURCE)/usr/share/doc/$(DEB_SOURCE)/copyright.frameworks.native	
 	dh_installchangelogs -s
 	dh_installdocs -s
 	dh_installexamples -s
