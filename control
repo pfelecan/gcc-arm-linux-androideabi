@@ -13,7 +13,7 @@ Standards-Version: 3.9.4
 
 Package: gcc-arm-linux-androideabi
 Architecture: amd64 i386
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, binutils-multiarch
 Description: cross toolchain and binutils for Android/Bionic on ARM
  Cross toolchain targetting Android/Bionic on ARM such as Android,
  ClockWorkMod, Ubuntu Touch recovery image, Ubuntu Tounch android

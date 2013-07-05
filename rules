@@ -48,14 +48,14 @@ stamps/binutils1: stamps/binutils-prepare
 		--target=$(TARGET) \
 		--disable-docs \
 		--disable-nls \
-		--disable-shared \
 		--disable-werror \
 		--disable-ppl-version-check \
 		--enable-gold=default \
 		--disable-cloog-version-check \
 		--enable-cloog-backend=isl \
 		--enable-plugins \
-		--enable-threads
+		--enable-threads \
+		--disable-shared
 	dh_auto_build --parallel -Bbinutils/build1
 	dh_auto_build --parallel -Bbinutils/build1 -- install DESTDIR=$(DESTDIR)
 	mkdir -p stamps && touch $@
@@ -66,6 +66,7 @@ stamps/gcc-stage1: stamps/binutils1 stamps/gcc-prepare
 	cd gcc/stage1 && \
 	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET)" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET)" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../src/configure \
 		--prefix=$(DESTDIR)/usr \
+		--libexecdir=$(DESTDIR)/usr/lib \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
@@ -120,6 +121,7 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	cd gcc/stage2 && \
 	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../src/configure \
 		--prefix=$(DESTDIR)/usr \
+		--libexecdir=$(DESTDIR)/usr/lib \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
@@ -154,9 +156,32 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage2 -- install
 	touch $@
 
+# Build shared binutils2
+stamps/binutils2: stamps/binutils-prepare
+	mkdir -p binutils/build2
+	cd binutils/build2 && \
+	  ../binutils/configure \
+		--prefix=/usr \
+		--build=$(DEB_BUILD_GNU_TYPE) \
+		--host=$(DEB_BUILD_GNU_TYPE) \
+		--target=$(TARGET) \
+		--disable-docs \
+		--disable-nls \
+		--disable-werror \
+		--disable-ppl-version-check \
+		--enable-gold=default \
+		--disable-cloog-version-check \
+		--enable-cloog-backend=isl \
+		--enable-plugins \
+		--enable-threads \
+		--enable-shared
+	dh_auto_build --parallel -Bbinutils/build2
+	dh_auto_build --parallel -Bbinutils/build2 -- install DESTDIR=$(DESTDIR)
+	mkdir -p stamps && touch $@
+
 build: build-arch build-indep
 
-build-arch: stamps/gcc-stage2
+build-arch: stamps/gcc-stage2 stamps/binutils2
 build-indep:
 
 clean: 
@@ -181,7 +206,8 @@ install-arch:
 	-cd $(d)/usr/$(TARGET)/include && rm -rf stdio.h sys stlport
 	# Remove bionic, should be build with android build
 	cd $(d)/usr/$(TARGET)/lib/ && rm -rf libc* libm.so libdl.so crt*.o
-
+	find $(d) -name "*.la" -delete
+	rm -rf $(d)/usr/bin/$(TARGET)-gcc-*
 	rm -rf $(d)/usr/lib/libiberty.a
 	rm -rf $(d)/usr/share/locale
 	rm -rf $(d)/usr/share/man/man7
@@ -209,7 +235,7 @@ binary-arch: build-arch install-arch
 	dh_shlibdeps -s -X.so
 	dh_gencontrol -s
 	dh_md5sums -s
-	dh_builddeb -s
+	dh_builddeb -s -- -Zxz
 
 get-orig-source:
 	fakeroot ./debian/rules clean

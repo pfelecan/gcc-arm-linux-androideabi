@@ -1,3 +1,13 @@
+gcc-arm-linux-androideabi (0.20130705.1-0ubuntu2) saucy; urgency=low
+
+  * Use /usr/lib, instead of /usr/libexec
+  * Remove unneeded .la files
+  * Remove versioned gcc-4.x.y symlink
+  * Build shared binutils
+  * Use xz compression on debian package
+
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Fri, 05 Jul 2013 19:50:17 +0100
+
 gcc-arm-linux-androideabi (0.20130705.1-0ubuntu1) saucy; urgency=low
 
   * Initial release, android cross-toolchain.
