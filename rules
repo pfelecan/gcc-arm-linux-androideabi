@@ -194,6 +194,7 @@ binary-indep: build-indep install-indep
 binary-arch: build-arch install-arch
 	dh_testdir
 	dh_testroot
+	dh_install -s
 	dh_installchangelogs -s
 	dh_installdocs -s
 	dh_installexamples -s
