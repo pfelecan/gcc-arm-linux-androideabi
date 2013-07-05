@@ -1,3 +1,9 @@
+gcc-arm-linux-androideabi (0.20130705-1) saucy; urgency=low
+
+  * Trim android build.
+
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Fri, 05 Jul 2013 10:12:24 +0100
+
 gcc-arm-linux-androideabi (0.20130704.2-1) saucy; urgency=low
 
   * Uss gcc-4.7-source.
