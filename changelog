@@ -1,3 +1,9 @@
+gcc-arm-linux-androideabi (0.20130705.1-0ubuntu3) saucy; urgency=low
+
+  * Ship bionic libc and headers.
+
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 08 Jul 2013 16:58:36 +0100
+
 gcc-arm-linux-androideabi (0.20130705.1-0ubuntu2) saucy; urgency=low
 
   * Use /usr/lib, instead of /usr/libexec

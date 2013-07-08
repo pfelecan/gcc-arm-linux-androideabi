@@ -15,6 +15,8 @@ TARGET	= arm-linux-androideabi
 TARGET_TOOLS_PATH = $(DESTDIR)/usr
 TARGET_TOOLS_PREFIX = $(TARGET_TOOLS_PATH)/bin/$(TARGET)-
 
+SYSROOT=$(CURDIR)/sys-root
+
 SET_PATH = PATH=$(DESTDIR)/usr/bin:$(PATH)
 
 CFLAGS_FOR_TARGET = -O2 -Os -g -DTARGET_POSIX_IO -fno-short-enums -isystem $(CURDIR)/android/bionic/libc/include -isystem $(CURDIR)/android/bionic/libc/kernel/common -isystem $(CURDIR)/android/bionic/libc/kernel/arch-arm -isystem $(CURDIR)/android/bionic/libc/arch-arm/include -isystem $(CURDIR)/android/bionic/libm/include -isystem $(CURDIR)/android/bionic/libm/include/arm -isystem $(CURDIR)/android/bionic/libm/arm -include $(CURDIR)/android/bionic/libc/include/sys/limits.h
@@ -104,12 +106,11 @@ stamps/bionic1: stamps/gcc-stage1
 	ONE_SHOT_MAKEFILE=build/libs/host/Android.mk dh_auto_build --parallel -B$(CURDIR)/android -- all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	ONE_SHOT_MAKEFILE=build/tools/acp/Android.mk dh_auto_build --parallel -B$(CURDIR)/android -- all_modules TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
 	ONE_SHOT_MAKEFILE=bionic/Android.mk dh_auto_build --parallel -B$(CURDIR)/android -- all_modules out/target/product/pandaboard/obj/lib/crtbegin_dynamic.o  TARGET_TOOLS_PREFIX=$(TARGET_TOOLS_PREFIX) TARGET_PRODUCT=pandaboard showcommands
-	mkdir -p $(DESTDIR)/usr/$(TARGET)/lib
-	cp android/out/target/product/*/obj/lib/* $(DESTDIR)/usr/$(TARGET)/lib
+	./debian/build-sysroot.sh $(CURDIR)/android/out/target/product/pandaboard/ $(SYSROOT)
 	touch dummy.c
 	$(SET_PATH) $(TARGET)-gcc -O2 -o dummy.o -c dummy.c
-	$(SET_PATH) $(TARGET)-ar cru $(DESTDIR)/usr/$(TARGET)/lib/libpthread.a dummy.o
-	$(SET_PATH) $(TARGET)-ranlib $(DESTDIR)/usr/$(TARGET)/lib/libpthread.a
+	$(SET_PATH) $(TARGET)-ar cru $(SYSROOT)/usr/lib/libpthread.a dummy.o
+	$(SET_PATH) $(TARGET)-ranlib $(SYSROOT)/usr/lib/libpthread.a
 	rm -f dummy.[co]
 
 	touch $@
@@ -120,11 +121,12 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 	# FIXME should use --prefix=/usr & --with-build-sysroot ?
 	cd gcc/stage2 && \
 	  $(SET_PATH) CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti" CFLAGS="$(CFLAGS)" CXXFLAGS="$(CFLAGS)" ../src/configure \
-		--prefix=$(DESTDIR)/usr \
-		--libexecdir=$(DESTDIR)/usr/lib \
+		--prefix=/usr \
+		--libexecdir=/usr/lib \
 		--build=$(DEB_BUILD_GNU_TYPE) \
 		--host=$(DEB_BUILD_GNU_TYPE) \
 		--target=$(TARGET) \
+		--with-build-sysroot=$(SYSROOT) \
 		--disable-multilib \
 		--with-gnu-as \
 		--with-gnu-ld \
@@ -153,7 +155,7 @@ stamps/gcc-stage2: stamps/binutils1 stamps/bionic1
 		--disable-libatomic \
 		--disable-libstdc__-v3
 	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage2 -- CFLAGS_FOR_TARGET="$(CFLAGS_FOR_TARGET) -fexceptions" CXXFLAGS_FOR_TARGET="$(CXXFLAGS_FOR_TARGET) -frtti"
-	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage2 -- install
+	$(SET_PATH) dh_auto_build --parallel -Bgcc/stage2 -- install DESTDIR=$(DESTDIR)
 	touch $@
 
 # Build shared binutils2
@@ -188,7 +190,7 @@ clean:
 	dh_testdir
 	dh_testroot
 	rm -rf stamps
-	rm -rf binutils gcc android/out tmp
+	rm -rf binutils gcc android/out tmp $(SYSROOT)
 	dh_clean 
 
 install: install-indep install-arch
@@ -202,10 +204,8 @@ install-arch:
 
 	tar -C $(DESTDIR) -c -f - . | tar -C $(d) -x -f -
 
-	# Remove conflicting headers, defined in Android
-	-cd $(d)/usr/$(TARGET)/include && rm -rf stdio.h sys stlport
-	# Remove bionic, should be build with android build
-	cd $(d)/usr/$(TARGET)/lib/ && rm -rf libc* libm.so libdl.so crt*.o
+	cp -a $(SYSROOT)/usr/lib/* $(d)/usr/$(TARGET)/lib/
+	cp -a $(SYSROOT)/usr/include $(d)/usr/$(TARGET)
 	find $(d) -name "*.la" -delete
 	rm -rf $(d)/usr/bin/$(TARGET)-gcc-*
 	rm -rf $(d)/usr/lib/libiberty.a
