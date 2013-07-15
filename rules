@@ -28,7 +28,7 @@ stamps/binutils-prepare:
 	mkdir -p binutils
 	tar -C binutils -x -f /usr/src/binutils/binutils-*.tar.*
 	cd binutils && ln -sf binutils-* binutils
-	cd binutils/binutils && QUILT_PATCHES=$(CURDIR)/debian/patches/binutils quilt --quiltrc - push -a
+	#cd binutils/binutils && QUILT_PATCHES=$(CURDIR)/debian/patches/binutils quilt --quiltrc - push -a
 	mkdir -p stamps && touch $@
 
 stamps/gcc-prepare:

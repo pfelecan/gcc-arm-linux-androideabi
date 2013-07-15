@@ -1,6 +1,7 @@
 gcc-arm-linux-androideabi (0.20130705.1-0ubuntu4) UNRELEASED; urgency=low
 
   * Drop spurious patch and stub documentation.
+  * Build without binutils patches.
 
  -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 15 Jul 2013 17:43:39 +0100
 
