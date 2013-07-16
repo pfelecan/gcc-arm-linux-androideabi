@@ -1,10 +1,10 @@
-gcc-arm-linux-androideabi (0.20130705.1-0ubuntu4) UNRELEASED; urgency=low
+gcc-arm-linux-androideabi (0.20130705.1-0ubuntu4) saucy; urgency=low
 
   * Build against Linaro support to the 4.7-2013.07 release.
   * Drop spurious patch and stub documentation.
   * Build without binutils patches.
 
- -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 15 Jul 2013 17:43:39 +0100
+ -- Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>  Mon, 15 Jul 2013 17:47:44 +0100
 
 gcc-arm-linux-androideabi (0.20130705.1-0ubuntu3) saucy; urgency=low
 
