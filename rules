@@ -32,7 +32,7 @@ stamps/binutils-prepare:
 
 stamps/gcc-prepare:
 	rm -rf gcc
-	cp -a /usr/src/gcc-4.7 gcc
+	cp -a /usr/src/gcc-4.9 gcc
 	mkdir -p gcc/stamps
 	cd gcc && debian/rules series
 	cp debian/patches/gcc/* gcc/debian/patches/
@@ -240,6 +240,17 @@ get-orig-source:
 	fakeroot ./debian/rules clean
 	-quilt pop -a -f
 	tar --exclude-vcs --transform='s,^,$(DEB_SOURCE)-$(DEB_VERSION_UPSTREAM)/,S' -caf ../$(DEB_SOURCE)_$(DEB_VERSION_UPSTREAM).orig.tar.xz android
+
+get-debian-source:
+	rm -rf debian
+	mkdir debian
+	tar --exclude-vcs --create --file - . | tar --directory=debian --extract --file=-
+	debian/rules get-debian-source-leaf
+	rm -rf debian
+
+# this, just to satisfy dpkg-parsechangelog:
+get-debian-source-leaf:
+	tar --directory=debian --create --xz --file=../$(DEB_SOURCE)_$(DEB_VERSION_UPSTREAM).debian.tar.xz --transform='s,^\./,debian/,' .
 
 binary: binary-arch binary-indep
 .PHONY: build clean binary-indep binary-arch binary install install-indep install-arch configure

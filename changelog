@@ -1,3 +1,10 @@
+gcc-arm-linux-androideabi (0.20150507.1) unstable; urgency=low
+
+  * Build against Linaro support to the 4.9-2015.04 release.
+  * Vanilla Debian package.
+
+ -- Peter Felecan <peter@felecan.org>  Thu, 07 May 2013 13:53:44 +0100
+
 gcc-arm-linux-androideabi (0.20130705.1-0ubuntu4) saucy; urgency=low
 
   * Build against Linaro support to the 4.7-2013.07 release.
