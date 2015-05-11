@@ -16,7 +16,6 @@ $ repo init --manifest-branch bleeding_edge --manifest-url git://github.com/pfel
 $ repo sync -j8
 $ repo start master --all
 $ ./debian/rules get-orig-source
-$ ./debian/rules get-debian-source-leaf
 $ debuild -S
 
  -- Peter Felecan <peter@felecan.org>, Thu, 07 May 2015 13:50:48 +0100

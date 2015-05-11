@@ -1,36 +1,16 @@
-Description: disable java checks
-Author: Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>
-
---- a/android/build/core/main.mk
-+++ b/android/build/core/main.mk
-@@ -122,6 +122,7 @@
+diff --unified --recursive a/android/build/core/config.mk b/android/build/core/config.mk
+--- a/android/build/core/config.mk	2015-05-11 10:45:12.941865966 +0200
++++ b/android/build/core/config.mk	2015-05-11 11:19:37.829920197 +0200
+@@ -437,6 +437,8 @@
+ COLUMN:= column
  endif
- 
- 
-+ifneq (,)
- # Check for the correct version of java
- java_version := $(shell java -version 2>&1 | head -n 1 | grep '^java .*[ "]1\.6[\. "$$]')
- ifneq ($(shell java -version 2>&1 | grep -i openjdk),)
-@@ -163,6 +164,7 @@
- $(info ************************************************************)
- $(error stop)
- endif
-+endif
- 
- $(shell echo 'VERSIONS_CHECKED := $(VERSION_CHECK_SEQUENCE_NUMBER)' \
-         > $(OUT_DIR)/versions_checked.mk)
---- a/android/build/core/config.mk
-+++ b/android/build/core/config.mk
-@@ -331,6 +331,8 @@
- endif
- OLD_FLEX := prebuilt/$(HOST_PREBUILT_TAG)/flex/flex-2.5.4a$(HOST_EXECUTABLE_SUFFIX)
  
 +HOST_JDK_TOOLS_JAR :=
 +ifneq (,)
  ifeq ($(HOST_OS),darwin)
- # Mac OS' screwy version of java uses a non-standard directory layout
- # and doesn't even seem to have tools.jar.  On the other hand, javac seems
-@@ -350,6 +352,7 @@
+ ifeq ($(LEGACY_USE_JAVA6),)
+ HOST_JDK_TOOLS_JAR:= $(shell $(BUILD_SYSTEM)/find-jdk-tools-jar.sh)
+@@ -460,6 +462,7 @@
  ifneq ($(filter 64-Bit, $(shell java -version 2>&1)),)
  HOST_JDK_IS_64BIT_VERSION := true
  endif
@@ -38,3 +18,22 @@ Author: Dmitrijs Ledkovs <dmitrij.ledkov@ubuntu.com>
  
  # It's called md5 on Mac OS and md5sum on Linux
  ifeq ($(HOST_OS),darwin)
+diff --unified --recursive a/android/build/core/main.mk b/android/build/core/main.mk
+--- a/android/build/core/main.mk	2015-05-11 10:45:12.945865966 +0200
++++ b/android/build/core/main.mk	2015-05-11 11:18:20.345918162 +0200
+@@ -139,6 +139,7 @@
+ java_version_str := $(shell unset _JAVA_OPTIONS && java -version 2>&1)
+ javac_version_str := $(shell unset _JAVA_OPTIONS && javac -version 2>&1)
+ 
++ifneq (,)
+ # Check for the correct version of java, should be 1.7 by
+ # default, and 1.6 if LEGACY_USE_JAVA6 is set.
+ ifeq ($(LEGACY_USE_JAVA6),)
+@@ -166,6 +167,7 @@
+ $(info ************************************************************)
+ $(error stop)
+ endif
++endif
+ 
+ # Check for the current JDK.
+ #
