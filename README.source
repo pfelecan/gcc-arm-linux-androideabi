@@ -12,12 +12,11 @@ To correctly fetch the source package, please install repo tool using these inst
 Then you can checkout the source using the manifest for this package and generate debian source package:
 
 $ mkdir gcc-bionic && cd gcc-bionic
-$ repo init -u git://github.com/pfelecan/manifest-gcc-arm-linux-androideabi.git
-$ cd .repo/manifests
-$ git checkout bleeding_edge
+$ repo init --manifest-branch bleeding_edge --manifest-url git://github.com/pfelecan/manifest-gcc-arm-linux-androideabi.git
 $ repo sync -j8
 $ repo start master --all
 $ ./debian/rules get-orig-source
+$ ./debian/rules get-debian-source-leaf
 $ debuild -S
 
  -- Peter Felecan <peter@felecan.org>, Thu, 07 May 2015 13:50:48 +0100
